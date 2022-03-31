@@ -21,6 +21,9 @@ import os
 import logging
 from django.urls import re_path, include
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
+from django.conf import settings
+from django.conf.urls.static import static
+
 
 from nav.config import find_config_dir
 from nav.web import refresh_session
@@ -88,3 +91,6 @@ handler500 = 'nav.django.views.custom_500'
 
 # Make django serve static files (a webserver like apache overrides this)
 urlpatterns += staticfiles_urlpatterns()
+
+# Make django server media files (NOT FOR PRODUCTION!)
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

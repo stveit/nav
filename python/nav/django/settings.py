@@ -86,9 +86,17 @@ UPLOAD_DIR = NAV_CONFIG.get(
     'UPLOAD_DIR', os.path.join(nav.buildconf.localstatedir, 'uploads')
 )
 
+# DEFAULT_FILE_STORAGE = 'storages.backends.overwrite.OverwriteStorage'
+
+
 STATICFILES_DIRS = [
     ('uploads', UPLOAD_DIR),
 ]
+
+# Media files
+MEIDA_URL = '/media/'
+MEDIA_ROOT = os.path.join("/", "tmp", 'media')
+
 # Mount the NAV docs if running under the Django development server
 _base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
 _doc_dir = os.path.join(_base_dir, 'build/sphinx/html')
@@ -115,6 +123,7 @@ TEMPLATES = [
                 'nav.django.context_processors.footer_info',
                 'nav.django.context_processors.auth',
                 'django.template.context_processors.static',
+                'django.template.context_processors.media',
             ],
             'debug': DEBUG,
             "builtins": ["nav.django.templatetags.query"],
@@ -171,7 +180,12 @@ CACHES = {
         'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
         'LOCATION': '/tmp/nav_cache',
         'TIMEOUT': '60',
-    }
+    },
+    'sortedstats': {
+        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+        'LOCATION': '/tmp/nav_cache',
+        'TIMEOUT': '3600',
+    },
 }
 
 

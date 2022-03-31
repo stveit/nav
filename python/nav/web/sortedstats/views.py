@@ -16,7 +16,18 @@
 """Sorted statistics views."""
 
 import logging
+import shutil
+import requests
+import os
+
 from django.shortcuts import render
+from django.core.cache import caches
+from django.core.files.storage import default_storage
+from django.core.files.images import ImageFile
+from django.core.files.base import ContentFile
+from django.conf import settings
+
+from nav.metrics import CONFIG
 
 from .forms import ViewForm
 from . import CLASSMAP
@@ -27,13 +38,20 @@ _logger = logging.getLogger(__name__)
 def index(request):
     """Sorted stats search & result view"""
     result = None
+    line_graph_path = None
+    pie_graph_path = None
     if 'view' in request.GET:
         form = ViewForm(request.GET)
         if form.is_valid():
-            cls = CLASSMAP[form.cleaned_data['view']]
-            result = cls(form.cleaned_data['timeframe'], form.cleaned_data['rows'])
-            result.collect()
-
+            collector = SortedstatsCollector(
+                form.cleaned_data['view'],
+                form.cleaned_data['timeframe'],
+                form.cleaned_data['rows'],
+            )
+            collector.collect(form.cleaned_data['use_cache'])
+            result = collector.result
+            line_graph_path = collector.line_graph_path
+            pie_graph_path = collector.pie_graph_path
     else:
         form = ViewForm()
 
@@ -42,6 +60,113 @@ def index(request):
         'navpath': [('Home', '/'), ('Statistics', False)],
         'result': result,
         'form': form,
+        'graph_path': line_graph_path,
     }
+    request.META['SERVER_PORT']
 
     return render(request, 'sortedstats/sortedstats.html', context)
+
+
+class SortedstatsCollector:
+    _cache = caches['sortedstats']
+    result = None
+    line_graph_path = None
+    pie_graph_path = None
+
+    def __init__(self, view, timeframe, rows):
+        self._cache_key = f"{view}_{timeframe}_{rows}"
+        self._view = view
+        self._timeframe = timeframe
+        self._rows = rows
+
+    def collect(self, read_cache):
+        if read_cache:
+            try:
+                cache_blob = self._load_cache()
+                result = cache_blob['result']
+                line_graph = cache_blob['line_graph']
+                pie_graph = cache_blob['pie_graph']
+            except LookupError:
+                read_cache = False
+        if not read_cache:
+            result = self._get_result()
+            line_graph = self._download_graph()
+            pie_graph = self._download_graph()
+        self._write_file(line_graph, 'line')
+        self._write_file(pie_graph, 'pie')
+        # if self._has_timed_out():
+        #    read_cache = False
+        # self.result = self._get_result(read_cache)
+        # self.line_graph_path = self._get_graph_path(self.result.graph_url, 'line', read_cache)
+        # self.pie_graph_path = self._get_graph_path(self.result.graph_url, 'pie', read_cache)
+
+    def _save_cache(self, result, line_graph, pie_graph):
+        cache_blob = {
+            'result': result,
+            'line_graph': line_graph,
+            'pie_graph': self.pie_graph,
+        }
+        self._cache.set(self._cache_key, cache_blob, 600)
+
+    def _load_cache(self):
+        cache_blob = self._cache.get(self._cache_key)
+        if not cache_blob:
+            raise LookupError(
+                f"Cache key '{self._cache_key}' not found in cache 'sortedstats'"
+            )
+        return cache_blob
+
+    def _get_result(self, read_cache):
+        result = None
+        if read_cache:
+            result = self._cache.get(self._cache_key)
+        if not result:
+            cls = CLASSMAP[self._view]
+            result = cls(self._timeframe, self._rows)
+            result.collect()
+            self._cache.set(self._cache_key, result, 600)
+        return result
+
+    def _get_graph_path(self, graph_url, graph_type, read_cache):
+        valid_graph_types = ['line', 'pie']
+        if graph_type not in valid_graph_types:
+            raise ValueError(f"graph_type must be in {valid_graph_types}")
+        format_ = CONFIG.get('graphiteweb', 'format')
+        graph_name = f'sortedstats_graphs/{self._cache_key}_{graph_type}.{format_}'
+        graph_path = default_storage.url(graph_name)
+        if read_cache and default_storage.exists(graph_name):
+            return graph_path
+        base = CONFIG.get('graphiteweb', 'base')
+        stripped_graph_url = graph_url.split("/graphite/")[1]
+        url = f"{base}{stripped_graph_url}&format={format_}&tz={settings.TIME_ZONE}&graphType={graph_type}"
+        r = requests.get(url)
+        if r.status_code == 200:
+            if default_storage.exists(graph_name):
+                default_storage.delete(graph_name)
+            default_storage.save(graph_name, ContentFile(r.content))
+        return graph_path
+
+    def _download_graph(self, graph_url, graph_type):
+        format_ = CONFIG.get('graphiteweb', 'format')
+        base = CONFIG.get('graphiteweb', 'base')
+        stripped_graph_url = graph_url.split("/graphite/")[1]
+        url = f"{base}{stripped_graph_url}&format={format_}&tz={settings.TIME_ZONE}&graphType={graph_type}"
+        r = requests.get(url)
+        r.raise_for_status()
+        return ContentFile(r.content)
+
+    def _write_graph(self, graph, graph_type):
+        graph_name = self._get_graph_name(graph_type)
+        graph_path = default_storage.url(graph_name)
+        if default_storage.exists(graph_name):
+            default_storage.delete(graph_name)
+        default_storage.save(graph_name, graph)
+        return graph_path
+
+    def _has_timed_out(self):
+        return not self._cache.get(self._cache_key)
+
+    def _get_graph_name(self, graph_type):
+        format_ = CONFIG.get('graphiteweb', 'format')
+        graph_name = f'sortedstats_graphs/{self._cache_key}_{graph_type}.{format_}'
+        return graph_name

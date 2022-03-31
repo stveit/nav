@@ -18,11 +18,11 @@
   {% endwith %}
 
 
+  {%}
   {% crispy form %}
-
   {# Display view if exists #}
   {% if result %}
-    {% if result.graph_url %}
+    {% if graph_path %}
       <ul class="button-group">
         <li>
           <a id="line-chart" href="javascript:void(0);" class="button small active">Line chart</a>
@@ -32,7 +32,7 @@
         </li>
       </ul>
 
-      <img src="{{ result.graph_url }}" alt="Chart" title="Chart" class="left statistics-chart">
+      <img src="{{ graph_path }}" alt="Chart" title="Chart" class="left statistics-chart">
 
       <table class="listtable left">
         <caption>Average values</caption>
