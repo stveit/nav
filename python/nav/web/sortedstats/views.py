@@ -90,21 +90,26 @@ class SortedstatsCollector:
                 read_cache = False
         if not read_cache:
             result = self._get_result()
-            line_graph = self._download_graph()
-            pie_graph = self._download_graph()
-        self._write_file(line_graph, 'line')
-        self._write_file(pie_graph, 'pie')
-        # if self._has_timed_out():
-        #    read_cache = False
-        # self.result = self._get_result(read_cache)
-        # self.line_graph_path = self._get_graph_path(self.result.graph_url, 'line', read_cache)
-        # self.pie_graph_path = self._get_graph_path(self.result.graph_url, 'pie', read_cache)
+            line_graph = self._download_graph(result.graph_url, 'line')
+            pie_graph = self._download_graph(result.graph_url, 'pie')
+            self._save_cache(result, line_graph, pie_graph)
+        if line_graph:
+            self.line_graph_path = self._write_graph(line_graph, 'line')
+        else:
+            self._delete_graph('line')
+            self.line_graph_path = None
+        if pie_graph:
+            self.pie_graph_path = self._write_graph(pie_graph, 'pie')
+        else:
+            self._delete_graph('pie')
+            self.pie_graph_path = None
+        self.result = result
 
     def _save_cache(self, result, line_graph, pie_graph):
         cache_blob = {
             'result': result,
             'line_graph': line_graph,
-            'pie_graph': self.pie_graph,
+            'pie_graph': pie_graph,
         }
         self._cache.set(self._cache_key, cache_blob, 600)
 
@@ -116,35 +121,11 @@ class SortedstatsCollector:
             )
         return cache_blob
 
-    def _get_result(self, read_cache):
-        result = None
-        if read_cache:
-            result = self._cache.get(self._cache_key)
-        if not result:
-            cls = CLASSMAP[self._view]
-            result = cls(self._timeframe, self._rows)
-            result.collect()
-            self._cache.set(self._cache_key, result, 600)
+    def _get_result(self):
+        cls = CLASSMAP[self._view]
+        result = cls(self._timeframe, self._rows)
+        result.collect()
         return result
-
-    def _get_graph_path(self, graph_url, graph_type, read_cache):
-        valid_graph_types = ['line', 'pie']
-        if graph_type not in valid_graph_types:
-            raise ValueError(f"graph_type must be in {valid_graph_types}")
-        format_ = CONFIG.get('graphiteweb', 'format')
-        graph_name = f'sortedstats_graphs/{self._cache_key}_{graph_type}.{format_}'
-        graph_path = default_storage.url(graph_name)
-        if read_cache and default_storage.exists(graph_name):
-            return graph_path
-        base = CONFIG.get('graphiteweb', 'base')
-        stripped_graph_url = graph_url.split("/graphite/")[1]
-        url = f"{base}{stripped_graph_url}&format={format_}&tz={settings.TIME_ZONE}&graphType={graph_type}"
-        r = requests.get(url)
-        if r.status_code == 200:
-            if default_storage.exists(graph_name):
-                default_storage.delete(graph_name)
-            default_storage.save(graph_name, ContentFile(r.content))
-        return graph_path
 
     def _download_graph(self, graph_url, graph_type):
         format_ = CONFIG.get('graphiteweb', 'format')
@@ -152,21 +133,26 @@ class SortedstatsCollector:
         stripped_graph_url = graph_url.split("/graphite/")[1]
         url = f"{base}{stripped_graph_url}&format={format_}&tz={settings.TIME_ZONE}&graphType={graph_type}"
         r = requests.get(url)
-        r.raise_for_status()
+        if r.status_code != 200:
+            return None
         return ContentFile(r.content)
 
     def _write_graph(self, graph, graph_type):
         graph_name = self._get_graph_name(graph_type)
-        graph_path = default_storage.url(graph_name)
+        self._delete_graph(graph_type)
+        default_storage.save(graph_name, graph)
+        return self._get_graph_path(graph_type)
+
+    def _delete_graph(self, graph_type):
+        graph_name = self._get_graph_name(graph_type)
         if default_storage.exists(graph_name):
             default_storage.delete(graph_name)
-        default_storage.save(graph_name, graph)
-        return graph_path
-
-    def _has_timed_out(self):
-        return not self._cache.get(self._cache_key)
 
     def _get_graph_name(self, graph_type):
         format_ = CONFIG.get('graphiteweb', 'format')
         graph_name = f'sortedstats_graphs/{self._cache_key}_{graph_type}.{format_}'
         return graph_name
+
+    def _get_graph_path(self, graph_type):
+        graph_name = self._get_graph_name(graph_type)
+        return default_storage.url(graph_name)
