@@ -80,46 +80,19 @@ class SortedstatsCollector:
         self._rows = rows
 
     def collect(self, read_cache):
+        result = None
         if read_cache:
-            try:
-                cache_blob = self._load_cache()
-                result = cache_blob['result']
-                line_graph = cache_blob['line_graph']
-                pie_graph = cache_blob['pie_graph']
-            except LookupError:
-                read_cache = False
-        if not read_cache:
+            result = self._cache.get(self._cache_key)
+        if not result:
             result = self._get_result()
             line_graph = self._download_graph(result.graph_url, 'line')
             pie_graph = self._download_graph(result.graph_url, 'pie')
-            self._save_cache(result, line_graph, pie_graph)
-        if line_graph:
-            self.line_graph_path = self._write_graph(line_graph, 'line')
-        else:
-            self._delete_graph('line')
-            self.line_graph_path = None
-        if pie_graph:
-            self.pie_graph_path = self._write_graph(pie_graph, 'pie')
-        else:
-            self._delete_graph('pie')
-            self.pie_graph_path = None
+            self._write_graph(line_graph, 'line')
+            self._write_graph(pie_graph, 'pie')
+            self._cache.set(self._cache_key, result, 600)
         self.result = result
-
-    def _save_cache(self, result, line_graph, pie_graph):
-        cache_blob = {
-            'result': result,
-            'line_graph': line_graph,
-            'pie_graph': pie_graph,
-        }
-        self._cache.set(self._cache_key, cache_blob, 600)
-
-    def _load_cache(self):
-        cache_blob = self._cache.get(self._cache_key)
-        if not cache_blob:
-            raise LookupError(
-                f"Cache key '{self._cache_key}' not found in cache 'sortedstats'"
-            )
-        return cache_blob
+        self.line_graph_path = self._get_graph_path('line')
+        self.pie_graph_path = self._get_graph_path('pie')
 
     def _get_result(self):
         cls = CLASSMAP[self._view]
@@ -140,8 +113,9 @@ class SortedstatsCollector:
     def _write_graph(self, graph, graph_type):
         graph_name = self._get_graph_name(graph_type)
         self._delete_graph(graph_type)
+        if not graph:
+            return None
         default_storage.save(graph_name, graph)
-        return self._get_graph_path(graph_type)
 
     def _delete_graph(self, graph_type):
         graph_name = self._get_graph_name(graph_type)
