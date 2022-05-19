@@ -204,6 +204,8 @@ class NetboxEntity(Shadow):
 
     __shadowclass__ = manage.NetboxEntity
     manager = EntityManager
+    event = EventFactory('ipdevpoll', 'eventEngine', 'chassisState')
+    is_new_chassis = False
 
     def __init__(self, *args, **kwargs):
         super(NetboxEntity, self).__init__(*args, **kwargs)
@@ -221,6 +223,9 @@ class NetboxEntity(Shadow):
     def save(self, containers):
         self._check_for_resolved_chassis_outage()
         super(NetboxEntity, self).save(containers)
+
+    def prepare(self, containers):
+        self.is_new_chassis = (not self.get_existing_model()) and (self.is_chassis())
 
     def _check_for_resolved_chassis_outage(self):
         if self.physical_class != manage.NetboxEntity.CLASS_CHASSIS:
@@ -259,6 +264,23 @@ class NetboxEntity(Shadow):
             ]
         else:
             return []
+
+    @classmethod
+    def _post_events_new_chassis(cls, containers):
+        for shadow_entity in containers[cls].values():
+            if shadow_entity.is_new_chassis:
+                entity = shadow_entity.get_existing_model()
+                cls.event.notify(
+                    device=entity.device,
+                    netbox=entity.netbox,
+                    subid=entity.id,
+                    alert_type='newChassis',
+                ).save()
+
+    @classmethod
+    def cleanup_after_save(cls, containers):
+        cls._post_events_new_chassis(containers)
+        return super(NetboxEntity, cls).cleanup_after_save(containers)
 
 
 class EntityIndex(object):
