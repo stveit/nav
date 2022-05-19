@@ -106,6 +106,7 @@ class Module(Shadow):
     __shadowclass__ = manage.Module
     __lookups__ = [('netbox', 'device'), ('netbox', 'name')]
     event = EventFactory('ipdevpoll', 'eventEngine', 'moduleState')
+    is_new = False
 
     @classmethod
     def prepare_for_save(cls, containers):
@@ -142,6 +143,7 @@ class Module(Shadow):
         self._fix_binary_garbage()
         self._fix_missing_name()
         self._resolve_duplicate_names()
+        self.is_new = not self.get_existing_model()
 
     def _fix_binary_garbage(self):
         """Fixes string attributes that appear as binary garbage."""
@@ -233,8 +235,21 @@ class Module(Shadow):
                 cls.event.end(module.device, module.netbox, module.id).save()
 
     @classmethod
+    def _post_events_new_module(cls, containers):
+        for shadow_module in containers[cls].values():
+            if shadow_module.is_new:
+                module = shadow_module.get_existing_model()
+                cls.event.notify(
+                    device=module.device,
+                    netbox=module.netbox,
+                    subid=module.id,
+                    alert_type='newModule',
+                ).save()
+
+    @classmethod
     def cleanup_after_save(cls, containers):
         cls._handle_missing_modules(containers)
+        cls._post_events_new_module(containers)
         return super(Module, cls).cleanup_after_save(containers)
 
 
