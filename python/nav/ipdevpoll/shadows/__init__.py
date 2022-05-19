@@ -32,6 +32,7 @@ from nav.event2 import EventFactory
 from nav.ipdevpoll.storage import MetaShadow, Shadow, shadowify
 from nav.ipdevpoll import descrparsers
 from nav.ipdevpoll import utils
+from nav.ipdevpoll.plugins.psuwatch import EVENT_MAP
 
 from .netbox import Netbox
 from .interface import Interface, InterfaceStack, InterfaceAggregate
@@ -718,11 +719,15 @@ class Sensor(Shadow):
 class PowerSupplyOrFan(Shadow):
     __shadowclass__ = manage.PowerSupplyOrFan
     __lookups__ = [('netbox', 'name')]
+    psu_event = EventFactory('ipdevpoll', 'eventEngine', 'psuState')
+    fan_event = EventFactory('ipdevpoll', 'eventEngine', 'fanState')
+    NEW_ALERT_MAP = {"powerSupply": 'newPsu', "fan": "newFan"}
+    is_new = False
 
     def prepare(self, containers):
-        existing = self.get_existing_model(containers)
+        self.is_new = not self.get_existing_model(containers)
         # Set a default value of UNKNOWN if this is a new object
-        if not existing and self.up is None:
+        if self.is_new and self.up is None:
             self.up = manage.PowerSupplyOrFan.STATE_UNKNOWN
 
     @classmethod
@@ -754,6 +759,24 @@ class PowerSupplyOrFan(Shadow):
             netbox=netbox.id
         ).exclude(pk__in=found_psus_and_fans_pks)
         return missing_psus_and_fans
+
+    @classmethod
+    def _post_events_new_psu_or_fan(cls, containers):
+        for shadow_psufan in containers[cls].values():
+            if shadow_psufan.is_new:
+                psufan = shadow_psufan.get_existing_model()
+                event = EVENT_MAP.get(psufan.physical_class)
+                cls.event.notify(
+                    device=psufan.device,
+                    netbox=psufan.netbox,
+                    subid=psufan.id,
+                    alert_type=cls.NEW_ALERT_MAP.get(psufan.physical_class),
+                ).save()
+
+    @classmethod
+    def cleanup_after_save(cls, containers):
+        cls._post_events_new_psu_or_fan(containers)
+        return super(Module, cls).cleanup_after_save(containers)
 
 
 class POEPort(Shadow):
