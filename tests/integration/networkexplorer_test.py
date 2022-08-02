@@ -1,4 +1,5 @@
-from unittest import TestCase
+import pytest
+
 from nav.web.networkexplorer import search
 from nav.web.networkexplorer.forms import NetworkSearchForm
 from nav.web.networkexplorer.views import (
@@ -10,7 +11,7 @@ from nav.web.networkexplorer.views import (
 from django.test.client import RequestFactory
 
 
-class NetworkExplorerSearchTest(TestCase):
+class TestNetworkExplorerSearch():
     """Tests that the various network explorer search functions don't raise
     database exceptions.
 
@@ -60,67 +61,72 @@ class NetworkExplorerSearchTest(TestCase):
     def test_vlan_search_exact(self):
         search.vlan_search('20', exact=True)
 
-
-class TestDataMixin(object):
+@pytest.fixture()
+def valid_data():
     valid_data = {
         'query_0': 'somequery',
         'query_1': 'sysname',
     }
+    return valid_data
+
+@pytest.fixture()
+def invalid_data():
     invalid_data = {
         'query_0': 'somequery',
         # Missing query type
     }
+    return invalid_data
 
+@pytest.fixture()
+def url_root():
+    url_root = '/networkexplorer/'
+    return url_root
 
-class ViewsTest(TestDataMixin, TestCase):
-    def setUp(self):
-        self.factory = RequestFactory()
-        self.url_root = '/networkexplorer/'
+class TestViews():
 
-    def test_index_view(self):
-        request = self.factory.get(self.url_root)
+    @pytest.fixture()
+    def factory(self):
+        factory = RequestFactory()
+        return factory
+
+    def test_index_view(self, factory, url_root):
+        request = factory.get(url_root)
         response = IndexView.as_view()(request)
+        assert response.status_code == 200
 
-        self.assertEqual(response.status_code, 200)
-
-    def test_router_json_view(self):
-        request = self.factory.get(self.url_root + 'routers/')
+    def test_router_json_view(self, factory, url_root):
+        request = factory.get(url_root + 'routers/')
         response = RouterJSONView.as_view()(request)
+        assert response.status_code == 200
 
-        self.assertEqual(response.status_code, 200)
-
-    def test_search_view_with_valid_query(self):
-        request = self.factory.get(
-            self.url_root + 'search/',
-            self.valid_data,
+    def test_search_view_with_valid_query(self, factory, valid_data, url_root):
+        request = factory.get(
+            url_root + 'search/',
+            valid_data,
         )
         response = SearchView.as_view()(request)
         content = response.content.decode('utf-8')
+        assert response.status_code == 200
+        assert 'routers' in content
+        assert 'gwports' in content
+        assert 'swports' in content
 
-        self.assertEqual(response.status_code, 200)
-        self.assertTrue('routers' in content)
-        self.assertTrue('gwports' in content)
-        self.assertTrue('swports' in content)
-
-    def test_search_view_with_invalid_query(self):
-        request = self.factory.get(
-            self.url_root + 'search/',
-            self.invalid_data,
+    def test_search_view_with_invalid_query(self, factory, invalid_data, url_root):
+        request = factory.get(
+            url_root + 'search/',
+            invalid_data,
         )
         response = SearchView.as_view()(request)
         content = response.content.decode('utf-8')
+        assert response.status_code == 200
+        assert not 'routers' in content
+        assert not 'gwports' in content
+        assert not 'swports' in content
 
-        self.assertEqual(response.status_code, 200)
-        self.assertFalse('routers' in content)
-        self.assertFalse('gwports' in content)
-        self.assertFalse('swports' in content)
 
-
-class FormsTest(TestDataMixin, TestCase):
-    def test_search_form(self):
-
-        valid_form = NetworkSearchForm(self.valid_data)
-        invalid_form = NetworkSearchForm(self.invalid_data)
-
-        self.assertTrue(valid_form.is_valid(), msg='Valid form failed validaion')
-        self.assertFalse(invalid_form.is_valid(), msg='Invalid form passed validation')
+class TestForms():
+    def test_search_form(self, valid_data, invalid_data):
+        valid_form = NetworkSearchForm(valid_data)
+        invalid_form = NetworkSearchForm(invalid_data)
+        assert valid_form.is_valid(), 'Valid form failed validaion'
+        assert not invalid_form.is_valid(), 'Invalid form passed validation'
