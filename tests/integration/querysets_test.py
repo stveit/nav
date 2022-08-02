@@ -1,6 +1,6 @@
 import datetime as dt
 
-from django.test import TestCase
+import pytest
 
 from nav.models.event import AlertHistory
 from nav.models.event import AlertHistoryVariable
@@ -13,8 +13,9 @@ from nav.models.manage import Room
 from nav.models.manage import Organization
 
 
-class NetboxQuerysetTest(TestCase):
-    def setUp(self):
+class TestNetboxQueryset():
+    @pytest.fixture()
+    def netboxes(self, db):
         # Some rows have already been created
         _netbox_data = {
             "room": Room.objects.get(id="myroom"),
@@ -27,12 +28,12 @@ class NetboxQuerysetTest(TestCase):
             dict(sysname="spam.bar.com", ip="158.38.152.9", **_netbox_data),
         ]
 
-        self.netboxes = [
+        netboxes = [
             Netbox.objects.create(**netbox_data) for netbox_data in TEST_NETBOX_DATA
         ]
         ah = AlertHistory.objects.create(
             source=Subsystem.objects.first(),
-            netbox=self.netboxes[2],
+            netbox=netboxes[2],
             event_type=EventType.objects.get(id="maintenanceState"),
             start_time=dt.datetime.now(),
             value=0,
@@ -40,15 +41,16 @@ class NetboxQuerysetTest(TestCase):
             severity=3,
         )
         AlertHistoryVariable.objects.create(alert_history=ah, variable="netbox")
+        return netboxes
 
-    def test_on_maintenance_true(self):
+    def test_on_maintenance_true(self, netboxes):
         on_maintenance = Netbox.objects.on_maintenance(True)
-        self.assertEqual(on_maintenance.count(), 1)
-        self.assertEqual(on_maintenance[0], self.netboxes[2])
+        assert on_maintenance.count() == 1
+        assert on_maintenance[0] == netboxes[2]
 
-    def test_on_maintenance_false(self):
+    def test_on_maintenance_false(self, netboxes):
         # A netbox not used in this test has already been created
         not_on_maintenance = Netbox.objects.on_maintenance(False)
-        self.assertIn(self.netboxes[0], not_on_maintenance)
-        self.assertIn(self.netboxes[1], not_on_maintenance)
-        self.assertNotIn(self.netboxes[2], not_on_maintenance)
+        assert netboxes[0] in not_on_maintenance
+        assert netboxes[1] in not_on_maintenance
+        assert not netboxes[2] in not_on_maintenance
