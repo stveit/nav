@@ -17,10 +17,11 @@
 
 import logging
 from datetime import datetime
+from urllib.parse import urlparse
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.authentication import TokenAuthentication, BaseAuthentication
-from urllib.parse import urlparse
+from django.contrib.auth.models import AnonymousUser
 
 from nav.models.api import APIToken
 
@@ -153,3 +154,6 @@ class APIPermission(BasePermission):
         return LoggedInPermission().has_permission(
             request, view
         ) or TokenPermission().has_permission(request, view)
+
+def get_user(request, token):
+    return AnonymousUser()

@@ -24,6 +24,8 @@ services:
       - PGHOST=postgres
       - PGDATABASE=nav
       - PGUSER=postgres
+      - OIDC_ENDPOINT=https://auth.dataporten.no
+      - JWT_AUDIENCE=nav
     volumes:
       - .:/source
       - nav_config:/etc/nav

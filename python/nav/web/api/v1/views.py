@@ -40,6 +40,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSet
 from rest_framework.generics import ListAPIView, get_object_or_404
+import oidc_auth.authentication.JSONWebTokenAuthentication as JWTAuthentication
 
 from nav.models import manage, event, cabling, rack, profiles
 from nav.models.fields import INFINITY, UNRESOLVED
@@ -199,7 +200,7 @@ class RelatedOrderingFilter(filters.OrderingFilter):
 class NAVAPIMixin(APIView):
     """Mixin for providing permissions and renderers"""
 
-    authentication_classes = (NavBaseAuthentication, APIAuthentication)
+    authentication_classes = (NavBaseAuthentication, APIAuthentication, JWTAuthentication)
     permission_classes = (APIPermission,)
     renderer_classes = (JSONRenderer, BrowsableAPIRenderer)
     filter_backends = (filters.SearchFilter, DjangoFilterBackend, RelatedOrderingFilter)
