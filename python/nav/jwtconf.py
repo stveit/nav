@@ -14,9 +14,21 @@ class JWTConf(NAVConfigParser):
     NAV_SECTION = "nav"
 
     def get_issuers_setting(self):
-        issuers_settings = dict()
-        for section in self.sections():
-            try:
+        try:
+            external_settings = self._get_settings_for_external_tokens()
+            local_settings = self._get_settings_for_nav_issued_tokens()
+            external_settings.update(local_settings)
+            return external_settings
+        except ConfigurationError as error:
+            _logger.error('Error reading jwtconfig: %s', error)
+            return dict()
+
+    def _get_settings_for_external_tokens(self):
+        settings = dict()
+        try:
+            for section in self.sections():
+                if section == self.NAV_SECTION:
+                    continue
                 get = partial(self.get, section)
                 issuer = self._validate_issuer(section)
                 key = self._validate_key(get('key'))
@@ -27,14 +39,17 @@ class JWTConf(NAVConfigParser):
                 claims_options = {
                     'aud': {'values': [aud], 'essential': True},
                 }
-                issuers_settings[issuer] = {
+                settings[issuer] = {
                     'key': key,
                     'type': key_type,
                     'claims_options': claims_options,
                 }
-            except (configparser.Error, ConfigurationError) as error:
-                _logger.error('Error collecting stats for %s: %s', section, error)
-        return issuers_settings
+        except (
+            configparser.NoSectionError,
+            configparser.NoOptionError,
+        ) as error:
+            raise ConfigurationError(error)
+        return settings
 
     def _read_key_from_path(self, path):
         try:
