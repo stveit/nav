@@ -88,3 +88,20 @@ class JWTConf(NAVConfigParser):
         if not name:
             raise ConfigurationError("Invalid 'name': 'name' must not be empty")
         return name
+
+    def _get_settings_for_nav_issued_tokens(self):
+        if not self.has_section(self.NAV_SECTION):
+            return {}
+        name = self.get_nav_name()
+        claims_options = {
+            'aud': {'values': [name], 'essential': True},
+            'token_type': {'values': ['access_token'], 'essential': True},
+        }
+        settings = {
+            name: {
+                'type': "PEM",
+                'key': self.get_nav_public_key(),
+                'claims_options': claims_options,
+            }
+        }
+        return settings
