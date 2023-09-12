@@ -468,16 +468,20 @@ class Juniper(ManagementHandler):
     def get_poe_states(
         self, interfaces: Sequence[manage.Interface] = None
     ) -> Dict[int, Optional[PoeState]]:
-        state_dict = {}
-        for interface in interfaces:
+        if len(interfaces) == 0:
+            return {}
+        elif len(interfaces) == 1:
+            interface = interfaces[0]
             try:
-                state_dict[interface.ifindex] = self._get_poe_state(interface)
+                state = self._get_poe_state(interface)
             except POENotSupportedError:
-                state_dict[interface.ifindex] = None
-        return state_dict
+                state = None
+            return {interface.ifindex: state}
+        else:
+            return self._get_poe_states_bulk(interfaces)
 
     @wrap_unhandled_rpc_errors
-    def _get_poe_state(self, interface: manage.Interface):
+    def _get_poe_state(self, interface: manage.Interface) -> PoeState:
         tree = self.device.device.rpc.get_poe_interface_information(
             ifname=interface.ifname
         )
@@ -493,13 +497,36 @@ class Juniper(ManagementHandler):
             raise XMLParseError(
                 f"Expected 1 matching element in xml response, {len(matching_elements)} found"
             )
-        poe_state = matching_elements[0].text.lower()
-        if poe_state == "enabled":
+        ifenabled = matching_elements[0].text.lower()
+        return self._poe_string_to_state(ifenabled)
+
+    @wrap_unhandled_rpc_errors
+    def _get_poe_states_bulk(
+        self, interfaces: manage.Interface
+    ) -> Dict[int, Optional[PoeState]]:
+        tree = self.device.device.rpc.get_poe_interface_information()
+        interface_information_elements = tree.findall(".//interface-information")
+        ifname_to_state_dict = {}
+        for element in interface_information_elements:
+            ifname = element.findall(".//interface-name")[0].text.lower()
+            ifenabled = element.findall(".//interface-enabled")[0].text.lower()
+            ifname_to_state_dict[ifname] = self._poe_string_to_state(ifenabled)
+        ifindex_to_state_dict = {
+            interface.ifindex: ifname_to_state_dict.get(interface.ifname)
+            for interface in interfaces
+        }
+        return ifindex_to_state_dict
+
+    def _poe_string_to_state(self, state_str: str) -> PoeState:
+        """Converts from internal juniper state names to
+        corresponding PoeState objects
+        """
+        if state_str.lower() == "enabled":
             return self.POE_ENABLED
-        elif poe_state == "disabled":
+        elif state_str.lower() == "disabled":
             return self.POE_DISABLED
         else:
-            raise POEStateNotSupportedError(f"Unknown PoE state {poe_state}")
+            raise POEStateNotSupportedError(f"Unknown PoE state {state_str}")
 
     # FIXME Implement dot1x fetcher methods
     # dot1x authentication configuration fetchers aren't implemented yet, for lack
