@@ -512,7 +512,7 @@ class Juniper(ManagementHandler):
             ifenabled = element.findall(".//interface-enabled")[0].text.lower()
             ifname_to_state_dict[ifname] = self._poe_string_to_state(ifenabled)
         ifindex_to_state_dict = {
-            interface.ifindex: ifname_to_state_dict.get(interface.ifname)
+            interface.ifindex: ifname_to_state_dict.get(interface.ifname.lower())
             for interface in interfaces
         }
         return ifindex_to_state_dict
