@@ -448,8 +448,7 @@ class Juniper(ManagementHandler):
             raise DeviceNotConfigurableError("Device has no NAPALM profile")
 
     def get_poe_state_options(self) -> Sequence[PoeState]:
-        options_list = [self.POE_ENABLED, self.POE_DISABLED]
-        return tuple(options_list)
+        return [self.POE_ENABLED, self.POE_DISABLED]
 
     @wrap_unhandled_rpc_errors
     def set_poe_state(self, interface: manage.Interface, state: PoeState):
