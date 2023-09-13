@@ -504,8 +504,8 @@ class Juniper(ManagementHandler):
         interface_information_elements = tree.findall(".//interface-information")
         ifname_to_state_dict = {}
         for element in interface_information_elements:
-            ifname = element.findall(".//interface-name")[0].text.lower()
-            ifenabled = element.findall(".//interface-enabled")[0].text.lower()
+            ifname = element.findall(".//interface-name")[0].text.strip().lower()
+            ifenabled = element.findall(".//interface-enabled")[0].text.strip().lower()
             ifname_to_state_dict[ifname] = self._poe_string_to_state(ifenabled)
         ifindex_to_state_dict = {
             interface.ifindex: ifname_to_state_dict.get(interface.ifname.lower())
