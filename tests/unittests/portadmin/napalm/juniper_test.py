@@ -45,6 +45,13 @@ def profile_mock():
     yield profile
 
 
+@pytest.fixture()
+def handler_mock(netbox_mock, profile_mock):
+    juniper = Juniper(netbox=netbox_mock)
+    juniper._profile = profile_mock
+    yield juniper
+
+
 class TestWrapUnhandledRpcErrors:
     def test_rpcerrors_should_become_protocolerrors(self):
         @wrap_unhandled_rpc_errors
@@ -107,3 +114,10 @@ class TestJuniper:
 
         m = MockedJuniperHandler(Mock())
         assert len(m.get_netbox_vlans()) == 1
+
+
+class TestJuniperPoe:
+    def test_returns_correct_state_options(self, handler_mock):
+        state_options = handler_mock.get_poe_state_options()
+        assert Juniper.POE_ENABLED in state_options
+        assert Juniper.POE_DISABLED in state_options
