@@ -479,11 +479,8 @@ class Juniper(ManagementHandler):
         else:
             return self._get_poe_states_bulk(interfaces)
 
-    @wrap_unhandled_rpc_errors
     def _get_poe_state(self, interface: manage.Interface) -> PoeState:
-        tree = self.device.device.rpc.get_poe_interface_information(
-            ifname=interface.ifname
-        )
+        tree = self._get_poe_interface_information(ifname=interface.ifname)
         matching_elements = tree.xpath(
             "//poe/interface-information-detail/interface-enabled-detail"
         )
@@ -499,11 +496,10 @@ class Juniper(ManagementHandler):
         ifenabled = matching_elements[0].text.lower()
         return self._poe_string_to_state(ifenabled)
 
-    @wrap_unhandled_rpc_errors
     def _get_poe_states_bulk(
         self, interfaces: manage.Interface
     ) -> Dict[int, Optional[PoeState]]:
-        tree = self.device.device.rpc.get_poe_interface_information()
+        tree = self._get_poe_interface_information()
         interface_information_elements = tree.findall(".//interface-information")
         ifname_to_state_dict = {}
         for element in interface_information_elements:
@@ -526,6 +522,10 @@ class Juniper(ManagementHandler):
             return self.POE_DISABLED
         else:
             raise POEStateNotSupportedError(f"Unknown PoE state {state_str}")
+
+    @wrap_unhandled_rpc_errors
+    def _get_poe_interface_information(self, ifname: Optional[str] = None):
+        return self.device.device.rpc.get_poe_interface_information(ifname=ifname)
 
     # FIXME Implement dot1x fetcher methods
     # dot1x authentication configuration fetchers aren't implemented yet, for lack
