@@ -3,7 +3,11 @@ from mock import Mock
 import pytest
 
 from nav.oids import OID
-from nav.enterprise.ids import VENDOR_ID_HEWLETT_PACKARD, VENDOR_ID_CISCOSYSTEMS
+from nav.enterprise.ids import (
+    VENDOR_ID_HEWLETT_PACKARD,
+    VENDOR_ID_CISCOSYSTEMS,
+    VENDOR_ID_JUNIPER_NETWORKS_INC,
+)
 from nav.portadmin.management import ManagementFactory
 from nav.portadmin.snmp.hp import HP
 from nav.portadmin.snmp.cisco import Cisco
@@ -105,6 +109,11 @@ def netbox_hp(profile):
 
 
 @pytest.fixture
+def handler_hp(netbox_hp):
+    return ManagementFactory.get_instance(netbox_hp)
+
+
+@pytest.fixture
 def netbox_cisco(profile):
     vendor = Mock()
     vendor.id = u'cisco'
@@ -122,10 +131,27 @@ def netbox_cisco(profile):
 
 
 @pytest.fixture
-def handler_hp(netbox_hp):
-    return ManagementFactory.get_instance(netbox_hp)
+def handler_cisco(netbox_cisco):
+    return ManagementFactory.get_instance(netbox_cisco)
 
 
 @pytest.fixture
-def handler_cisco(netbox_cisco):
+def netbox_juniper(profile):
+    vendor = Mock()
+    vendor.id = u'juniper'
+
+    netbox_type = Mock()
+    netbox_type.vendor = vendor
+    netbox_type.get_enterprise_id.return_value = VENDOR_ID_JUNIPER_NETWORKS_INC
+
+    netbox = Mock()
+    netbox.type = netbox_type
+    netbox.ip = '10.240.160.38'
+    netbox.get_preferred_snmp_management_profile.return_value = profile
+
+    return netbox
+
+
+@pytest.fixture
+def handler_juniper(netbox_juniper):
     return ManagementFactory.get_instance(netbox_cisco)
