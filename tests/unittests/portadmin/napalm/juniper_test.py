@@ -22,7 +22,11 @@ from jnpr.junos.exception import RpcError
 
 from nav.enterprise.ids import VENDOR_ID_RESERVED, VENDOR_ID_JUNIPER_NETWORKS_INC
 from nav.models import manage
-from nav.portadmin.handlers import DeviceNotConfigurableError, ProtocolError
+from nav.portadmin.handlers import (
+    DeviceNotConfigurableError,
+    ProtocolError,
+    POEStateNotSupportedError,
+)
 from nav.portadmin.napalm.juniper import wrap_unhandled_rpc_errors, Juniper
 
 
@@ -118,3 +122,11 @@ class TestJuniperPoe:
         state_options = handler_mock.get_poe_state_options()
         assert Juniper.POE_ENABLED in state_options
         assert Juniper.POE_DISABLED in state_options
+
+    def test_state_converter_returns_correct_states(self, handler_mock):
+        assert handler_mock._poe_string_to_state("enabled") == Juniper.POE_ENABLED
+        assert handler_mock._poe_string_to_state("disabled") == Juniper.POE_DISABLED
+
+    def test_state_converter_raises_error_for_invalid_states(self, handler_mock):
+        with pytest.raises(POEStateNotSupportedError):
+            handler_mock._poe_string_to_state("invalid_state")
