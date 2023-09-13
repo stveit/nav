@@ -34,6 +34,7 @@ from django.template.loader import get_template
 from napalm.base.exceptions import ConnectAuthError, ConnectionException
 from jnpr.junos.op.vlan import VlanTable
 from jnpr.junos.exception import RpcError
+from lxml.etree import ElementTree
 
 from nav.napalm import connect as napalm_connect
 from nav.enterprise.ids import VENDOR_ID_JUNIPER_NETWORKS_INC
@@ -525,7 +526,9 @@ class Juniper(ManagementHandler):
             raise POEStateNotSupportedError(f"Unknown PoE state {state_str}")
 
     @wrap_unhandled_rpc_errors
-    def _get_poe_interface_information(self, ifname: Optional[str] = None):
+    def _get_poe_interface_information(
+        self, ifname: Optional[str] = None
+    ) -> ElementTree:
         return self.device.device.rpc.get_poe_interface_information(ifname=ifname)
 
     # FIXME Implement dot1x fetcher methods
