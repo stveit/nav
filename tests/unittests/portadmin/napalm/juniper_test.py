@@ -51,6 +51,7 @@ def profile_mock():
 
 @pytest.fixture()
 def handler_mock(netbox_mock, profile_mock):
+    """Create management handler mock object"""
     juniper = Juniper(netbox=netbox_mock)
     juniper._profile = profile_mock
     yield juniper
