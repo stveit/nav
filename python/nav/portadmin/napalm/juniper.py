@@ -516,9 +516,10 @@ class Juniper(ManagementHandler):
         """Converts from internal juniper state names to
         corresponding PoeState objects
         """
-        if state_str.lower() == "enabled":
+        state_cleaned = state_str.strip().lower()
+        if state_cleaned == "enabled":
             return self.POE_ENABLED
-        elif state_str.lower() == "disabled":
+        elif state_cleaned == "disabled":
             return self.POE_DISABLED
         else:
             raise POEStateNotSupportedError(f"Unknown PoE state {state_str}")
