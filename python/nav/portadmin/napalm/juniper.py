@@ -500,7 +500,7 @@ class Juniper(ManagementHandler):
     def _get_poe_states_bulk(
         self, interfaces: manage.Interface
     ) -> Dict[int, Optional[PoeState]]:
-        tree = self._get_poe_interface_information()
+        tree = self._get_all_poe_interface_information()
         interface_information_elements = tree.findall(".//interface-information")
         ifname_to_state_dict = {}
         for element in interface_information_elements:
@@ -526,13 +526,12 @@ class Juniper(ManagementHandler):
             raise POEStateNotSupportedError(f"Unknown PoE state {state_str}")
 
     @wrap_unhandled_rpc_errors
-    def _get_poe_interface_information(
-        self, ifname: Optional[str] = None
-    ) -> ElementTree:
-        if ifname is None:
-            return self.device.device.rpc.get_poe_interface_information()
-        else:
-            return self.device.device.rpc.get_poe_interface_information(ifname=ifname)
+    def _get_all_poe_interface_information(self) -> ElementTree:
+        return self.device.device.rpc.get_poe_interface_information()
+
+    @wrap_unhandled_rpc_errors
+    def _get_poe_interface_information(self, ifname: str) -> ElementTree:
+        return self.device.device.rpc.get_poe_interface_information(ifname=ifname)
 
     # FIXME Implement dot1x fetcher methods
     # dot1x authentication configuration fetchers aren't implemented yet, for lack
