@@ -25,6 +25,9 @@
     <div class="hide-for-small medium-1 column">
       Linked
     </div>
+    <div class="hide-for-small medium-1 column">
+      PoE State
+    </div>
     <div class="hide-for-small medium-4 column">
       Port description
     </div>
@@ -36,6 +39,9 @@
         Tel
       </div>
     {% endif %}
+    <div class="hide-for-small medium-2 column">
+      Poe Select
+    </div>
     <div class="column {% if voice_vlan %}medium-1{% else %}medium-2{% endif %} text-right">
       {% if not readonly %}
         <input type="button" class="saveall_button button tiny" value="Save all"/>
@@ -73,6 +79,11 @@
         <img title="OperStatus - If red there is no link on the interface"
              src="{{ STATIC_URL }}images/lys/{{ interface.ifoperstatus|drawLight }}"
         />
+      </div>
+
+      {# PoE #}
+      <div class="medium-1 small-6 column portadmin-status">
+        {{ interface.poe_state.name }}
       </div>
 
       {# Port Description - input field #}
@@ -160,6 +171,20 @@
             &nbsp;
           {% endif %}
         </div>
+      {% endif %}
+
+      {# POE SELECT #}
+      {% if interface.poe_options %}
+      <form class="custom">
+        <select class="poelist" name="{{ interface.ifname }}">
+          {% for poe_option in interface.poe_options %}
+              <option value="{{ poe_option.name }}" label="{{ poe_option.name }}"
+                      {% if interface.poe_state.name == poe_option.name %}selected="selected"
+                      data-orig="{{ poe_option.name }}"{% endif %}>
+                {{ vlan }}
+          {% endfor %}
+        </select>
+      </form>
       {% endif %}
 
       {# Button for saving #}

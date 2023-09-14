@@ -26,7 +26,7 @@ from nav.models import manage, profiles
 from nav.django.utils import is_admin
 from nav.portadmin.config import CONFIG
 from nav.portadmin.management import ManagementFactory
-from nav.portadmin.handlers import ManagementHandler
+from nav.portadmin.handlers import ManagementHandler, ManagementError
 from nav.portadmin.vlan import FantasyVlan
 from nav.enterprise.ids import VENDOR_ID_CISCOSYSTEMS
 
@@ -236,6 +236,22 @@ def add_dot1x_info(interfaces, handler):
             interface.dot1x_external_url = url_template.format(
                 netbox=interface.netbox, interface=interface
             )
+
+
+def add_poe_info(interfaces, handler):
+    """Add information about PoE state for interfaces"""
+    try:
+        options = handler.get_poe_state_options()
+        states = handler.get_poe_states(interfaces)
+        for interface in interfaces:
+            try:
+                interface.poe_state = states.get(interface.ifindex)
+                interface.poe_options = options if interface.poe_state else None
+            except (ManagementError):
+                interface.poe_state = None
+                interface.poe_options = None
+    except NotImplementedError:
+        return
 
 
 def is_cisco(netbox):
