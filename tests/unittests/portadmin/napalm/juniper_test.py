@@ -61,7 +61,7 @@ def handler_mock(netbox_mock, profile_mock):
 @pytest.fixture()
 def xmlx_tree_single_result():
     """Creates a ElementTree containing poe information for an interface called ge-0/0/1"""
-    tree_string = """<poe> <interface-information-detail> <interface-name>ge-0/0/1 </interface-name>
+    tree_string = """<poe> <interface-information-detail> <interface-name-detail>ge-0/0/1 </interface-name-detail>
         <interface-enabled-detail>Enabled</interface-enabled-detail> </interface-information-detail> </poe>"""
     tree = etree.fromstring(tree_string)
     yield tree
