@@ -468,6 +468,8 @@ class Juniper(ManagementHandler):
     def get_poe_states(
         self, interfaces: Sequence[manage.Interface] = None
     ) -> Dict[int, Optional[PoeState]]:
+        if interfaces is None:
+            interfaces = self.netbox.interfaces
         if len(interfaces) == 0:
             return {}
         elif len(interfaces) == 1:
