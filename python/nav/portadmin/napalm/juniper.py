@@ -498,7 +498,7 @@ class Juniper(ManagementHandler):
         return self._poe_string_to_state(ifenabled)
 
     def _get_poe_states_bulk(
-        self, interfaces: manage.Interface
+        self, interfaces: Sequence[manage.Interface]
     ) -> Dict[int, Optional[PoeState]]:
         tree = self._get_all_poe_interface_information()
         interface_information_elements = tree.findall(".//interface-information")
