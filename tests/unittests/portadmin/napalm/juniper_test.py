@@ -91,10 +91,18 @@ def xmlx_tree_multiple_result():
 
 
 @pytest.fixture()
-def interface_mock():
+def interface1_mock():
     interface = Mock()
     interface.ifname = "ge-0/0/1"
     interface.ifindex = 1
+    yield interface
+
+
+@pytest.fixture()
+def interface2_mock():
+    interface = Mock()
+    interface.ifname = "ge-0/0/2"
+    interface.ifindex = 2
     yield interface
 
 
@@ -173,11 +181,21 @@ class TestJuniperPoe:
         with pytest.raises(POEStateNotSupportedError):
             handler_mock._poe_string_to_state("invalid_state")
 
-    def test_get_poe_state_returns_correct_state(
-        self, handler_mock, xmlx_tree_single_result, interface_mock
+    def test_get_poe_state_for_one_interface_returns_correct_state(
+        self, handler_mock, xmlx_tree_single_result, interface1_mock
     ):
         handler_mock._get_poe_interface_information = Mock(
             return_value=xmlx_tree_single_result
         )
-        state = handler_mock._get_poe_state(interface_mock)
+        state = handler_mock._get_poe_state(interface1_mock)
         assert state == Juniper.POE_ENABLED
+
+    def test_get_poe_state_bulk_returns_correct_states(
+        self, handler_mock, xmlx_tree_multiple_result, interface1_mock, interface2_mock
+    ):
+        handler_mock._get_all_poe_interface_information = Mock(
+            return_value=xmlx_tree_multiple_result
+        )
+        states = handler_mock._get_poe_states_bulk([interface1_mock, interface2_mock])
+        assert states[interface1_mock.ifindex] == Juniper.POE_ENABLED
+        assert states[interface2_mock.ifindex] == Juniper.POE_DISABLED
