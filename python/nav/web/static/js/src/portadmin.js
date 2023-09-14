@@ -176,6 +176,9 @@ require(['libs/spin.min', 'libs/jquery-ui.min'], function (Spinner) {
         $wrapper.on('change', '.ifadminstatus', function (event) {
             actOnChange($(event.target).parents(parentSelector));
         });
+        $wrapper.on('change', '.poelist', function (event) {
+            actOnChange($(event.target).parents(parentSelector));
+        });
     }
 
     /*
