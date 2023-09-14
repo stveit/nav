@@ -59,7 +59,7 @@ def handler_mock(netbox_mock, profile_mock):
 
 
 @pytest.fixture()
-def xmlx_tree_single_result(interface1_mock):
+def xml(interface1_mock):
     """Creates a ElementTree containing poe information for one interface"""
     tree_string = f"""
         <poe>
@@ -73,7 +73,7 @@ def xmlx_tree_single_result(interface1_mock):
 
 
 @pytest.fixture()
-def xmlx_tree_multiple_result(interface1_mock, interface2_mock):
+def xml_bulk(interface1_mock, interface2_mock):
     """Creates a ElementTree containing poe information for two interfaces"""
     tree_string = f"""
         <poe>
@@ -182,20 +182,16 @@ class TestJuniperPoe:
             handler_mock._poe_string_to_state("invalid_state")
 
     def test_get_poe_state_for_one_interface_returns_correct_state(
-        self, handler_mock, xmlx_tree_single_result, interface1_mock
+        self, handler_mock, xml, interface1_mock
     ):
-        handler_mock._get_poe_interface_information = Mock(
-            return_value=xmlx_tree_single_result
-        )
+        handler_mock._get_poe_interface_information = Mock(return_value=xml)
         state = handler_mock._get_poe_state(interface1_mock)
         assert state == Juniper.POE_ENABLED
 
     def test_get_poe_state_bulk_returns_correct_states(
-        self, handler_mock, xmlx_tree_multiple_result, interface1_mock, interface2_mock
+        self, handler_mock, xml_bulk, interface1_mock, interface2_mock
     ):
-        handler_mock._get_all_poe_interface_information = Mock(
-            return_value=xmlx_tree_multiple_result
-        )
+        handler_mock._get_all_poe_interface_information = Mock(return_value=xml_bulk)
         states = handler_mock._get_poe_states_bulk([interface1_mock, interface2_mock])
         assert states[interface1_mock.ifindex] == Juniper.POE_ENABLED
         assert states[interface2_mock.ifindex] == Juniper.POE_DISABLED
