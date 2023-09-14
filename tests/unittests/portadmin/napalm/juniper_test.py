@@ -188,10 +188,23 @@ class TestJuniperPoe:
         state = handler_mock._get_poe_state(interface1_mock)
         assert state == Juniper.POE_ENABLED
 
-    def test_get_poe_state_bulk_returns_correct_states(
+    def test_get_poe_states_bulk_returns_correct_states(
         self, handler_mock, xml_bulk, interface1_mock, interface2_mock
     ):
         handler_mock._get_all_poe_interface_information = Mock(return_value=xml_bulk)
         states = handler_mock._get_poe_states_bulk([interface1_mock, interface2_mock])
         assert states[interface1_mock.ifindex] == Juniper.POE_ENABLED
         assert states[interface2_mock.ifindex] == Juniper.POE_DISABLED
+
+    def test_get_poe_states_bulk_maps_interface_to_none_if_poe_not_supported(
+        self, handler_mock, xml_bulk
+    ):
+        handler_mock._get_all_poe_interface_information = Mock(return_value=xml_bulk)
+        if_mock = Mock()
+        if_mock.ifname == "random_if"
+        if_mock.ifindex = 0
+        states = handler_mock._get_poe_states_bulk([if_mock])
+        assert states[if_mock.ifindex] is None
+
+    def test_get_poe_states_returns_empty_dict_with_empty_input(self, handler_mock):
+        assert handler_mock.get_poe_states([]) == {}
