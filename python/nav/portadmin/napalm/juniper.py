@@ -529,7 +529,10 @@ class Juniper(ManagementHandler):
     def _get_poe_interface_information(
         self, ifname: Optional[str] = None
     ) -> ElementTree:
-        return self.device.device.rpc.get_poe_interface_information(ifname=ifname)
+        if ifname is None:
+            return self.device.device.rpc.get_poe_interface_information()
+        else:
+            return self.device.device.rpc.get_poe_interface_information(ifname=ifname)
 
     # FIXME Implement dot1x fetcher methods
     # dot1x authentication configuration fetchers aren't implemented yet, for lack
