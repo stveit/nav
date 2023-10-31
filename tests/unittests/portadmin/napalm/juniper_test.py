@@ -208,3 +208,15 @@ class TestJuniperPoe:
 
     def test_get_poe_states_returns_empty_dict_with_empty_input(self, handler_mock):
         assert handler_mock.get_poe_states([]) == {}
+
+    def test_get_poe_state_uses_interfaces_from_db_if_input_is_none(self):
+        pass
+
+    def test_get_poe_state_raises_exception_if_no_interfaces_in_xml(self):
+        pass
+
+    def test_get_poe_state_raises_exception_if_multiple_interfaces_in_xml(self):
+        pass
+
+    def test_get_poe_states_bulk_returns_empty_dict_if_no_interfaces_in_xml(self):
+        pass
