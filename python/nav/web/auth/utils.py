@@ -40,7 +40,6 @@ def set_account(request, account, cycle_session_id=True):
     _logger.debug('Set active account to "%s"', account.login)
     if cycle_session_id:
         request.session.cycle_key()
-    request.session.save()
 
 
 def clear_session(request):
@@ -48,7 +47,6 @@ def clear_session(request):
     if hasattr(request, "account"):
         del request.account
     request.session.flush()
-    request.session.save()
 
 
 def ensure_account(request):
