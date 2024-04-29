@@ -2,6 +2,8 @@ from mock import Mock
 
 from django.urls import reverse
 from django.utils.encoding import smart_str
+from django.test import TestCase, override_settings, modify_settings
+from django.contrib.sessions.middleware import SessionMiddleware
 from nav.models.profiles import AccountDashboard
 from nav.web.webfront.utils import tool_list
 
@@ -68,27 +70,46 @@ def test_set_default_dashboard_with_multiple_previous_defaults_should_succeed(
     )
 
 
-def test_when_logging_in_it_should_change_the_session_id(
-    db, client, admin_username, admin_password
-):
-    login_url = reverse('webfront-login')
-    logout_url = reverse('webfront-logout')
-    # log out first to compare before and after being logged in
-    client.post(logout_url)
-    assert client.session.session_key, "the initial session lacks an ID"
-    session_id_pre_login = client.session.session_key
-    client.post(login_url, {'username': admin_username, 'password': admin_password})
-    session_id_post_login = client.session.session_key
-    assert session_id_post_login != session_id_pre_login
+class TestSessionID(TestCase):
+    @modify_settings(
+        MIDDLEWARE={
+            'append': ['django.contrib.sessions.middleware.SessionMiddleware'],
+        }
+    )
+    def test_when_logging_in_it_should_change_the_session_id(
+        db, client, admin_username, admin_password
+    ):
+        login_url = reverse('webfront-login')
+        logout_url = reverse('webfront-logout')
+        # log out first to compare before and after being logged in
+        client.post(logout_url)
+        # middleware = SessionMiddleware(lambda request: None)
+        # Run through middleware so session gets updated properly
+        # middleware.process_response(clientresponse)
+        assert client.session.session_key, "the initial session lacks an ID"
+        session_id_pre_login = client.session.session_key
+        client.post(login_url, {'username': admin_username, 'password': admin_password})
+        session_id_post_login = client.session.session_key
+        assert session_id_post_login != session_id_pre_login
+
+    def test_non_expired_session_id_should_not_be_changed_on_request_unrelated_to_login(
+        db, client
+    ):
+        """Client should be fresh and guaranteed to not be expired"""
+        index_url = reverse('webfront-index')
+        assert client.session.session_key, "the initial session lacks an ID"
+        session_id_pre_login = client.session.session_key
+        client.get(index_url)
+        session_id_post_login = client.session.session_key
+        assert session_id_post_login == session_id_pre_login
 
 
-def test_non_expired_session_id_should_not_be_changed_on_request_unrelated_to_login(
-    db, client
-):
+def test_save(db, client):
     """Client should be fresh and guaranteed to not be expired"""
     index_url = reverse('webfront-index')
     assert client.session.session_key, "the initial session lacks an ID"
     session_id_pre_login = client.session.session_key
-    client.get(index_url)
+    # client.get(index_url)
+    client.session.save()
     session_id_post_login = client.session.session_key
     assert session_id_post_login == session_id_pre_login
